@@ -29,7 +29,7 @@ class VSVideoSpeeder: NSObject {
     func scaleAsset(fromURL url: URL,  by scale: Int64, withMode mode: SpeedoMode, completion: @escaping (_ exporter: AVAssetExportSession?) -> Void) {
         
         /// Check the valid scale
-        if scale < 0 || scale > 4 {
+        if scale < 0 || scale > 5 {
             /// Can not proceed, Invalid range
              completion(nil)
             return

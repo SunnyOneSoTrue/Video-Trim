@@ -67,7 +67,7 @@
                                             <constraint firstAttribute="height" constant="30" id="n84-ty-vfI"/>
                                         </constraints>
                                         <fontDescription key="fontDescription" type="system" weight="semibold" pointSize="16"/>
-                                        <state key="normal" title="Crop Video">
+                                        <state key="normal" title="Save Video">
                                             <color key="titleColor" white="0.0" alpha="1" colorSpace="calibratedWhite"/>
                                         </state>
                                         <connections>

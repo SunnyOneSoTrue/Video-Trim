@@ -419,33 +419,31 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
                 switch exportSession.status {
                 case .completed:
                     DispatchQueue.main.async {
-                        VSVideoSpeeder.shared.scaleAsset(fromURL: outputURL as URL, by: abs(Int64(self.slowDownSlider.value))
-                                                         , withMode: SpeedoMode.Slower) { (exporter) in
-                            if let exporter = exporter {
-                                switch exporter.status {
-                                case .failed: do {
-                                    print(exporter.error?.localizedDescription ?? "Error in exporting..")
-                                }
-                                case .completed: do {
-                                    print("Scaled video has been generated successfully!")
-                                    
-                                    //TODO: show alert that it was saved
-                                    
-                                    
-                                }
-                                case .unknown: break
-                                case .waiting: break
-                                case .exporting: break
-                                case .cancelled: break
-                                }
-                            }
-                            else {
-                                /// Error
-                                print("Exporter is not initialized.")
-                            }
-                            self.saveToCameraRoll(URL: VSVideoSpeeder.shared.urlToSave as NSURL?)
+                        switch self.slowDownSlider.value {
+                        case -4:
+                            self.slowDownVideo(fromURL: outputURL, by: 5, withMode: .Slower)
+                        case -3:
+                            self.slowDownVideo(fromURL: outputURL, by: 4, withMode: .Slower)
+                        case -2:
+                            self.slowDownVideo(fromURL: outputURL, by: 3, withMode: .Slower)
+                        case -1:
+                            self.slowDownVideo(fromURL: outputURL, by: 2, withMode: .Slower)
+                        case 0:
+                            self.slowDownVideo(fromURL: outputURL, by: 1, withMode: .Faster)
+                        case 1:
+                            self.slowDownVideo(fromURL: outputURL, by: 2, withMode: .Faster)
+                        case 2:
+                            self.slowDownVideo(fromURL: outputURL, by: 3, withMode: .Faster)
+                        case 3:
+                            self.slowDownVideo(fromURL: outputURL, by: 4, withMode: .Faster)
+                        case 4:
+                            self.slowDownVideo(fromURL: outputURL, by: 5, withMode: .Faster)
+                        default:
+                            print("tes")
                         }
                     }
+                    
+                    
                 case .failed:
                     print("failed \(String(describing: exportSession.error))")
                     
@@ -472,5 +470,35 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
                 }
             }}}
     
+    
+    private func slowDownVideo(fromURL url: URL,  by scale: Int64, withMode mode: SpeedoMode){
+        
+        VSVideoSpeeder.shared.scaleAsset(fromURL: url as URL, by: scale
+                                         , withMode: mode) { (exporter) in
+            if let exporter = exporter {
+                switch exporter.status {
+                case .failed: do {
+                    print(exporter.error?.localizedDescription ?? "Error in exporting..")
+                }
+                case .completed: do {
+                    print("Scaled video has been generated successfully!")
+                    
+                    //TODO: show alert that it was saved
+                    
+                    
+                }
+                case .unknown: break
+                case .waiting: break
+                case .exporting: break
+                case .cancelled: break
+                }
+            }
+            else {
+                /// Error
+                print("Exporter is not initialized.")
+            }
+            self.saveToCameraRoll(URL: VSVideoSpeeder.shared.urlToSave as NSURL?)
+        }
+    }
 }
 
