@@ -50,6 +50,7 @@ class VideoMainViewController: UIViewController {
     
     @IBOutlet weak var slowDownSlider: UISlider!
     
+    @IBOutlet weak var stackView: UIStackView!
     
     override func viewDidLoad()
     {
@@ -83,6 +84,7 @@ class VideoMainViewController: UIViewController {
         endView.isHidden            = true
         frameContainerView.isHidden = true
         slowDownSlider.isHidden = true
+        stackView.isHidden = true
         
         //Style for startTime
         startTimeText.layer.cornerRadius = 5.0
@@ -225,6 +227,7 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
         endView.isHidden            = false
         frameContainerView.isHidden = false
         slowDownSlider.isHidden = false
+        stackView.isHidden = false
         
         
         isSliderEnd = true
