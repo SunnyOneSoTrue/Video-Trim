@@ -126,7 +126,13 @@ class VideoMainViewController: UIViewController {
     {
         let start = Float(startTimeText.text!)
         let end   = Float(endTimeText.text!)
-        cropVideo(sourceURL1: url, startTime: start!, endTime: end!)
+        
+        //TODO: create the 4 cases where user selects the video and the indexes change
+        cropVideo(sourceURL1: url, startTime: Float(0.0), endTime: start!, indexOfVideo: 1)
+        cropVideo(sourceURL1: url, startTime: end!, endTime: Float(asset.duration.seconds), indexOfVideo: 3)
+        cropVideo(sourceURL1: url, startTime: start!, endTime: end!, indexOfVideo: 2)
+        
+        
     }
     
     @IBAction func onSliderChange(_ sender: UISlider) {
@@ -157,28 +163,6 @@ class VideoMainViewController: UIViewController {
     }
 }
 
-private func ChangeVideoSpeed(fromURL: NSURL, by: Int64, withMode: SpeedoMode){
-    VSVideoSpeeder.shared.scaleAsset(fromURL: fromURL as URL, by: by, withMode: withMode) { (exporter) in
-        if let exporter = exporter {
-            switch exporter.status {
-            case .failed: do {
-                print(exporter.error?.localizedDescription ?? "Error in exporting..")
-            }
-            case .completed: do {
-                print("Scaled video has been generated successfully!")
-            }
-            case .unknown: break
-            case .waiting: break
-            case .exporting: break
-            case .cancelled: break
-            }
-        }
-        else {
-            /// Error
-            print("Exporter is not initialized.")
-        }
-    }
-}
 
 //Subclass of VideoMainViewController
 extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationControllerDelegate,UITextFieldDelegate
@@ -376,7 +360,7 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
     }
     
     //Trim Video Function
-    func cropVideo(sourceURL1: NSURL, startTime:Float, endTime:Float)
+    func cropVideo(sourceURL1: NSURL, startTime:Float, endTime:Float, indexOfVideo: Int)
     {
         let manager = FileManager.default
         
@@ -384,22 +368,28 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
                                                        in: .userDomainMask,
                                                        appropriateFor: nil,
                                                        create: true) else {return}
-        guard let mediaType         = "mp4" as? String else {return}
-        guard (sourceURL1 as? NSURL) != nil else {return}
+        guard let mediaType = "mp4" as? String else {return}
+        //        guard (sourceURL1 as? NSURL) != nil else {return}
         
         if mediaType == kUTTypeMovie as String || mediaType == "mp4" as String
         {
-            let length = Float(asset.duration.value) / Float(asset.duration.timescale)
-            //print("video length: \(length) seconds")
-            
             let start = startTime
             let end = endTime
-            
             
             var outputURL = documentDirectory.appendingPathComponent("output")
             do {
                 try manager.createDirectory(at: outputURL, withIntermediateDirectories: true, attributes: nil)
-                outputURL = outputURL.appendingPathComponent("1.mp4")
+                
+                switch indexOfVideo {
+                case 1:
+                    outputURL = outputURL.appendingPathComponent("1.mp4")
+                case 2:
+                    outputURL = outputURL.appendingPathComponent("2.mp4")
+                case 3:
+                    outputURL = outputURL.appendingPathComponent("3.mp4")
+                default:
+                    print("index out of bounds")
+                }
             }catch let error {
                 print(error)
             }
@@ -413,39 +403,59 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
             exportSession.outputURL = outputURL
             exportSession.outputFileType = AVFileType.mp4
             
-            let startTime = CMTime(seconds: Double(start ), preferredTimescale: 1000)
-            let endTime = CMTime(seconds: Double(end ), preferredTimescale: 1000)
-            let timeRange = CMTimeRange(start: startTime, end: endTime)
+            var timeRange: CMTimeRange?
             
-            exportSession.timeRange = timeRange
+            switch indexOfVideo {
+            case 1:
+                let startTime = CMTime(seconds: Double(start), preferredTimescale: 1000)
+                let endTime = CMTime(seconds: Double(end), preferredTimescale: 1000)
+                timeRange = CMTimeRange(start: startTime, end: endTime)
+                print(timeRange)
+            case 2:
+                let startTime = CMTime(seconds: Double(start), preferredTimescale: 1000)
+                let endTime = CMTime(seconds: Double(end), preferredTimescale: 1000)
+                timeRange = CMTimeRange(start: startTime, end: endTime)
+                
+            case 3:
+                let startTime = CMTime(seconds: Double(start), preferredTimescale: 1000)
+                let endTime = CMTime(seconds: Double(end), preferredTimescale: 1000)
+                timeRange = CMTimeRange(start: startTime, end: endTime)
+            default:
+                print("index out of bounds")
+            }
+            
+            exportSession.timeRange = timeRange!
             exportSession.exportAsynchronously{
+                
+                let video2URL = documentDirectory.appendingPathComponent("output").appendingPathComponent("2.mp4")
                 switch exportSession.status {
                 case .completed:
+                    print("export session successful")
+                    
                     DispatchQueue.main.async {
                         switch self.slowDownSlider.value {
                         case -4:
-                            self.slowDownVideo(fromURL: outputURL, by: 5, withMode: .Slower)
+                            self.slowDownVideo(fromURL: video2URL, by: 5, withMode: .Slower)
                         case -3:
-                            self.slowDownVideo(fromURL: outputURL, by: 4, withMode: .Slower)
+                            self.slowDownVideo(fromURL: video2URL, by: 4, withMode: .Slower)
                         case -2:
-                            self.slowDownVideo(fromURL: outputURL, by: 3, withMode: .Slower)
+                            self.slowDownVideo(fromURL: video2URL, by: 3, withMode: .Slower)
                         case -1:
-                            self.slowDownVideo(fromURL: outputURL, by: 2, withMode: .Slower)
+                            self.slowDownVideo(fromURL: video2URL, by: 2, withMode: .Slower)
                         case 0:
-                            self.slowDownVideo(fromURL: outputURL, by: 1, withMode: .Faster)
+                            self.slowDownVideo(fromURL: video2URL, by: 1, withMode: .Faster)
                         case 1:
-                            self.slowDownVideo(fromURL: outputURL, by: 2, withMode: .Faster)
+                            self.slowDownVideo(fromURL: video2URL, by: 2, withMode: .Faster)
                         case 2:
-                            self.slowDownVideo(fromURL: outputURL, by: 3, withMode: .Faster)
+                            self.slowDownVideo(fromURL: video2URL, by: 3, withMode: .Faster)
                         case 3:
-                            self.slowDownVideo(fromURL: outputURL, by: 4, withMode: .Faster)
+                            self.slowDownVideo(fromURL: video2URL, by: 4, withMode: .Faster)
                         case 4:
-                            self.slowDownVideo(fromURL: outputURL, by: 5, withMode: .Faster)
+                            self.slowDownVideo(fromURL: video2URL, by: 5, withMode: .Faster)
                         default:
                             print("tes")
                         }
                     }
-                    
                     
                 case .failed:
                     print("failed \(String(describing: exportSession.error))")
@@ -453,14 +463,15 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
                 case .cancelled:
                     print("cancelled \(String(describing: exportSession.error))")
                     
-                default: break
+                default:
+                    print(exportSession.error!)
                 }
             }
         }
     }
     
     //Save Video to Photos Library
-    func saveToCameraRoll(URL: NSURL!) {
+    private func saveToCameraRoll(URL: NSURL!) {
         PHPhotoLibrary.shared().performChanges({
             PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: URL as URL)
         }) { saved, error in
@@ -475,9 +486,7 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
     
     
     private func slowDownVideo(fromURL url: URL,  by scale: Int64, withMode mode: SpeedoMode){
-        
-        VSVideoSpeeder.shared.scaleAsset(fromURL: url as URL, by: scale
-                                         , withMode: mode) { (exporter) in
+        VSVideoSpeeder.shared.scaleAsset(fromURL: url as URL, by: scale, withMode: mode) { (exporter) in
             if let exporter = exporter {
                 switch exporter.status {
                 case .failed: do {
@@ -485,10 +494,125 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
                 }
                 case .completed: do {
                     print("Scaled video has been generated successfully!")
-                    
-                    //TODO: show alert that it was saved
-                    
-                    
+                    self.mergeVideosAndSave(video2URL: VSVideoSpeeder.shared.urlToSave as URL?)
+                }
+                case .unknown: break
+                case .waiting: break
+                case .exporting: break
+                case .cancelled: break
+                }
+                
+                //                self.saveToCameraRoll(URL: VSVideoSpeeder.shared.urlToSave as NSURL?)
+                
+                
+            }
+            else {
+                /// Error
+                print("Exporter is not initialized.")
+            }
+        }
+    }
+    
+    private func mergeVideosAndSave(video2URL: URL?){
+        
+        //MARK: problem is somewhere here
+        
+        
+        
+        //MARK: smth happens to the 2nd video n it goes apeshit
+        
+        guard let documentDirectory = try? FileManager.default.url(for: .documentDirectory,
+                                                                   in: .userDomainMask,
+                                                                   appropriateFor: nil,
+                                                                   create: true) else {return}
+        let fileDirectory = documentDirectory.appendingPathComponent("output")
+        let video1URL = fileDirectory.appendingPathComponent("1.mp4")
+        
+        let video3URL = fileDirectory.appendingPathComponent("3.mp4")
+        
+        let movie = AVMutableComposition()
+        let videoTrack = movie.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)
+        let audioTrack = movie.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
+        
+        
+        let video1Asset = AVAsset(url: video1URL) //1st video
+        let video2Asset = AVAsset(url: video2URL!) //2nd video
+        let video3Asset = AVAsset(url: video3URL) //3rd video
+        
+        //loads the first video video and audio tracks
+        let video1AudioTrack = video1Asset.tracks(withMediaType: .audio).first!
+        let video1VideoTrack = video1Asset.tracks(withMediaType: .video).first!
+        let video1Range = CMTimeRangeMake(start: CMTime.zero, duration: video1Asset.duration)
+        
+        //loads the 2nd video video video and audio tracks
+        let video2AudioTrack = video2Asset.tracks(withMediaType: .audio).first! //2
+        let video2VideoTrack = video2Asset.tracks(withMediaType: .video).first!
+        let video2Range = CMTimeRangeMake(start: CMTime.zero, duration: video2Asset.duration)
+        
+        //        loads the 3rd video video video and audio tracks
+        let video3AudioTrack = video3Asset.tracks(withMediaType: .audio).first! //2
+        let video3VideoTrack = video3Asset.tracks(withMediaType: .video).first!
+        let video3Range = CMTimeRangeMake(start: CMTime.zero, duration: video3Asset.duration)
+        
+        do{
+            try videoTrack?.insertTimeRange(video1Range, of: video1VideoTrack, at: CMTime.zero) //inserts the first video to the composition
+            try audioTrack?.insertTimeRange(video1Range, of: video1AudioTrack, at: CMTime.zero) // inserts the first video audio
+            
+            
+            try videoTrack?.insertTimeRange(video2Range, of: video2VideoTrack, at: CMTime.zero ) // (videoTrack?.asset?.duration)!  inserts the second video to the composition
+            try audioTrack?.insertTimeRange(video2Range, of: video2AudioTrack, at: CMTime.zero)
+            
+            
+            try videoTrack?.insertTimeRange(video3Range, of: video3VideoTrack, at:CMTime.zero ) //(videoTrack?.asset?.duration)!  inserts the third video to composition
+            try audioTrack?.insertTimeRange(video3Range, of: video3AudioTrack, at: CMTime.zero) //CMTime(seconds: video1Asset.duration.seconds +                                  video2Asset.duration.seconds, preferredTimescale: 1000)
+        } catch {
+            print(LocalizedError.self)
+        }
+        
+        let outputMovieURL = fileDirectory.appendingPathComponent("4.mp4")
+        
+        do {
+            if FileManager.default.fileExists(atPath: outputMovieURL.path) {
+                try FileManager.default.removeItem(at: outputMovieURL) // just in case
+            }
+        } catch {
+            print(error.localizedDescription)
+        }
+        
+        let exporter = AVAssetExportSession(asset: movie,
+                                            presetName: AVAssetExportPresetHighestQuality) //1
+        //configure exporter
+        exporter?.outputURL = outputMovieURL//2
+        exporter?.outputFileType = .mov
+        //export!
+        exporter?.exportAsynchronously(completionHandler: { [weak exporter] in
+            DispatchQueue.main.async {
+                if let error = exporter?.error { //3
+                    print("failed \(error.localizedDescription)")
+                } else {
+                    print("movie has been exported to \(outputMovieURL)")
+                    self.saveToCameraRoll(URL: outputMovieURL as NSURL)
+                    do{
+                        try FileManager.default.removeItem(at: video1URL)
+                        try FileManager.default.removeItem(at: video2URL!)
+                        try FileManager.default.removeItem(at: video3URL)
+                    }catch{
+                        print(error)
+                    }
+                }
+            }
+        })
+    }
+    
+    private func ChangeVideoSpeed(fromURL: NSURL, by: Int64, withMode: SpeedoMode){
+        VSVideoSpeeder.shared.scaleAsset(fromURL: fromURL as URL, by: by, withMode: withMode) { (exporter) in
+            if let exporter = exporter {
+                switch exporter.status {
+                case .failed: do {
+                    print(exporter.error?.localizedDescription ?? "Error in exporting..")
+                }
+                case .completed: do {
+                    print("Scaled video has been generated successfully!")
                 }
                 case .unknown: break
                 case .waiting: break
@@ -500,8 +624,7 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
                 /// Error
                 print("Exporter is not initialized.")
             }
-            self.saveToCameraRoll(URL: VSVideoSpeeder.shared.urlToSave as NSURL?)
         }
     }
+    
 }
-

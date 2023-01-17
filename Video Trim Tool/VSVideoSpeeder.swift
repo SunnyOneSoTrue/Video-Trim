@@ -25,7 +25,7 @@ class VSVideoSpeeder: NSObject {
         return VSVideoSpeeder()
     }()
     
-    /// Range is b/w 1x, 2x and 3x. Will not happen anything if scale is out of range. Exporter will be nil in case url is invalid or unable to make asset instance.
+    /// Range is between 1x and 5x. Will not happen anything if scale is out of range. Exporter will be nil in case url is invalid or unable to make asset instance.
     func scaleAsset(fromURL url: URL,  by scale: Int64, withMode mode: SpeedoMode, completion: @escaping (_ exporter: AVAssetExportSession?) -> Void) {
         
         /// Check the valid scale
@@ -107,8 +107,6 @@ class VSVideoSpeeder: NSObject {
             exporter?.exportAsynchronously(completionHandler: {
                 completion(exporter)
             })
-            
-            //saveToCameraRoll(URL: targetURL as NSURL)
             
         } catch let error {
             print(error.localizedDescription)
