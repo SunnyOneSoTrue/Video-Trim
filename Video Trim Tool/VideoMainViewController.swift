@@ -29,6 +29,12 @@ class VideoMainViewController: UIViewController {
     var stopTime: CGFloat  = 0.0
     var thumbTime: CMTime!
     var thumbtimeSeconds: Int!
+    var caseOfExport: Int = 5 // varable deretmines how it exports videos
+    //                           0 - exports full video with desired slowtime
+    //                           1 - exports video trimmed from the left only
+    //                           2 - exports video trimmed from the right only
+    //                           3 - exports video trimmed from both sides
+                    
     
     var videoPlaybackPosition: CGFloat = 0.0
     var cache:NSCache<AnyObject, AnyObject>!
@@ -124,15 +130,34 @@ class VideoMainViewController: UIViewController {
     //Action for crop video
     @IBAction func cropVideo(_ sender: Any)
     {
+        
+        player.pause()
         let start = Float(startTimeText.text!)
         let end   = Float(endTimeText.text!)
         
-        //TODO: create the 4 cases where user selects the video and the indexes change
-        cropVideo(sourceURL1: url, startTime: Float(0.0), endTime: start!, indexOfVideo: 1)
-        cropVideo(sourceURL1: url, startTime: end!, endTime: Float(asset.duration.seconds), indexOfVideo: 3)
-        cropVideo(sourceURL1: url, startTime: start!, endTime: end!, indexOfVideo: 2)
+        //2 is the index of the video that will be slowed down. 1 and 3 are just cropped and saved.
         
-        
+        if (start == 0.0){
+            if end == Float(asset.duration.seconds).rounded() {
+                self.caseOfExport = 0
+                cropVideo(sourceURL1: url, startTime: start!, endTime: end!, indexOfVideo: 2)
+            } else {
+                self.caseOfExport = 2
+                cropVideo(sourceURL1: url, startTime: start!, endTime: end!, indexOfVideo: 2)
+                cropVideo(sourceURL1: url, startTime: end!, endTime: Float(asset.duration.seconds), indexOfVideo: 3)
+            }
+        } else {
+            if end == Float(asset.duration.seconds).rounded() {
+                self.caseOfExport = 1
+                cropVideo(sourceURL1: url, startTime: 0.0, endTime: start!, indexOfVideo: 1)
+                cropVideo(sourceURL1: url, startTime: start!, endTime: end!, indexOfVideo: 2)
+            }else{
+                self.caseOfExport = 3
+                cropVideo(sourceURL1: url, startTime: Float(0.0), endTime: start!, indexOfVideo: 1)
+                cropVideo(sourceURL1: url, startTime: end!, endTime: Float(asset.duration.seconds), indexOfVideo: 3)
+                cropVideo(sourceURL1: url, startTime: start!, endTime: end!, indexOfVideo: 2)
+            }
+        }
     }
     
     @IBAction func onSliderChange(_ sender: UISlider) {
@@ -175,7 +200,7 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
         asset   = AVURLAsset.init(url: url as URL)
         
         thumbTime = asset.duration
-        thumbtimeSeconds      = Int(CMTimeGetSeconds(thumbTime))
+        thumbtimeSeconds = Int(CMTimeGetSeconds(thumbTime))
         
         viewAfterVideoIsPicked()
         
@@ -415,7 +440,6 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
                 let startTime = CMTime(seconds: Double(start), preferredTimescale: 1000)
                 let endTime = CMTime(seconds: Double(end), preferredTimescale: 1000)
                 timeRange = CMTimeRange(start: startTime, end: endTime)
-                
             case 3:
                 let startTime = CMTime(seconds: Double(start), preferredTimescale: 1000)
                 let endTime = CMTime(seconds: Double(end), preferredTimescale: 1000)
@@ -431,7 +455,6 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
                 switch exportSession.status {
                 case .completed:
                     print("export session successful")
-                    
                     DispatchQueue.main.async {
                         switch self.slowDownSlider.value {
                         case -4:
@@ -472,6 +495,7 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
     
     //Save Video to Photos Library
     private func saveToCameraRoll(URL: NSURL!) {
+        
         PHPhotoLibrary.shared().performChanges({
             PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: URL as URL)
         }) { saved, error in
@@ -482,7 +506,12 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
                     alertController.addAction(defaultAction)
                     self.present(alertController, animated: true, completion: nil)
                 }
-            }}}
+            }
+            else {
+                print(error)
+            }
+            
+        }}
     
     
     private func slowDownVideo(fromURL url: URL,  by scale: Int64, withMode mode: SpeedoMode){
@@ -494,17 +523,13 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
                 }
                 case .completed: do {
                     print("Scaled video has been generated successfully!")
-                    self.mergeVideosAndSave(video2URL: VSVideoSpeeder.shared.urlToSave as URL?)
+                    self.mergeVideosAndSave(video2URL: VSVideoSpeeder.shared.urlToSave as URL?, case: self.caseOfExport)
                 }
                 case .unknown: break
                 case .waiting: break
                 case .exporting: break
                 case .cancelled: break
                 }
-                
-                //                self.saveToCameraRoll(URL: VSVideoSpeeder.shared.urlToSave as NSURL?)
-                
-                
             }
             else {
                 /// Error
@@ -513,14 +538,7 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
         }
     }
     
-    private func mergeVideosAndSave(video2URL: URL?){
-        
-        //MARK: problem is somewhere here
-        
-        
-        
-        //MARK: smth happens to the 2nd video n it goes apeshit
-        
+    private func mergeVideosAndSave(video2URL: URL?, case: Int){
         guard let documentDirectory = try? FileManager.default.url(for: .documentDirectory,
                                                                    in: .userDomainMask,
                                                                    appropriateFor: nil,
@@ -539,32 +557,82 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
         let video2Asset = AVAsset(url: video2URL!) //2nd video
         let video3Asset = AVAsset(url: video3URL) //3rd video
         
-        //loads the first video video and audio tracks
-        let video1AudioTrack = video1Asset.tracks(withMediaType: .audio).first!
-        let video1VideoTrack = video1Asset.tracks(withMediaType: .video).first!
-        let video1Range = CMTimeRangeMake(start: CMTime.zero, duration: video1Asset.duration)
         
         //loads the 2nd video video video and audio tracks
         let video2AudioTrack = video2Asset.tracks(withMediaType: .audio).first! //2
         let video2VideoTrack = video2Asset.tracks(withMediaType: .video).first!
         let video2Range = CMTimeRangeMake(start: CMTime.zero, duration: video2Asset.duration)
         
+        
+        //loads the first video video and audio tracks
+        var video1AudioTrack = video2Asset.tracks(withMediaType: .audio).first!
+        var video1VideoTrack = video2Asset.tracks(withMediaType: .video).first!
+        var video1Range = CMTimeRangeMake(start: CMTime.zero, duration: video2Asset.duration)
+        
         //        loads the 3rd video video video and audio tracks
-        let video3AudioTrack = video3Asset.tracks(withMediaType: .audio).first! //2
-        let video3VideoTrack = video3Asset.tracks(withMediaType: .video).first!
-        let video3Range = CMTimeRangeMake(start: CMTime.zero, duration: video3Asset.duration)
+        var video3AudioTrack = video2Asset.tracks(withMediaType: .audio).first! //2
+        var video3VideoTrack = video2Asset.tracks(withMediaType: .video).first!
+        var video3Range = CMTimeRangeMake(start: CMTime.zero, duration: video2Asset.duration)
+        
+        switch caseOfExport {
+        case 0:
+            print("nothing to do here")
+        case 1:
+            video1AudioTrack = video1Asset.tracks(withMediaType: .audio).first!
+            video1VideoTrack = video1Asset.tracks(withMediaType: .video).first!
+            video1Range = CMTimeRangeMake(start: CMTime.zero, duration: video1Asset.duration)
+        case 2:
+            
+            video3AudioTrack = video3Asset.tracks(withMediaType: .audio).first! //2
+            video3VideoTrack = video3Asset.tracks(withMediaType: .video).first!
+            video3Range = CMTimeRangeMake(start: CMTime.zero, duration: video3Asset.duration)
+        case 3:
+            video1AudioTrack = video1Asset.tracks(withMediaType: .audio).first!
+            video1VideoTrack = video1Asset.tracks(withMediaType: .video).first!
+            video1Range = CMTimeRangeMake(start: CMTime.zero, duration: video1Asset.duration)
+            
+            video3AudioTrack = video3Asset.tracks(withMediaType: .audio).first! //2
+            video3VideoTrack = video3Asset.tracks(withMediaType: .video).first!
+            video3Range = CMTimeRangeMake(start: CMTime.zero, duration: video3Asset.duration)
+        default:
+            print("out of bounds")
+        }
         
         do{
-            try videoTrack?.insertTimeRange(video1Range, of: video1VideoTrack, at: CMTime.zero) //inserts the first video to the composition
-            try audioTrack?.insertTimeRange(video1Range, of: video1AudioTrack, at: CMTime.zero) // inserts the first video audio
+            switch caseOfExport {
+            case 0:
+                
+                try videoTrack?.insertTimeRange(video2Range, of: video2VideoTrack, at:CMTime.zero ) //   inserts the second video to the composition
+                try audioTrack?.insertTimeRange(video2Range, of: video2AudioTrack, at: CMTime.zero)
+                
+            case 1:
+                try videoTrack?.insertTimeRange(video1Range, of: video1VideoTrack, at: CMTime.zero) //inserts the first video to the composition
+                try audioTrack?.insertTimeRange(video1Range, of: video1AudioTrack, at: CMTime.zero) // inserts the first video audio
+                
+                try videoTrack?.insertTimeRange(video2Range, of: video2VideoTrack, at:(videoTrack?.asset?.duration)! ) //   inserts the second video to the composition
+                try audioTrack?.insertTimeRange(video2Range, of: video2AudioTrack, at: CMTime(seconds: video1Asset.duration.seconds, preferredTimescale: 1000))
+                
+            case 2:
+                try videoTrack?.insertTimeRange(video2Range, of: video2VideoTrack, at: CMTime.zero ) // (videoTrack?.asset?.duration)!  inserts the second video to the composition
+                try audioTrack?.insertTimeRange(video2Range, of: video2AudioTrack, at: CMTime.zero)
+                
+                try videoTrack?.insertTimeRange(video3Range, of: video3VideoTrack, at:(videoTrack?.asset?.duration)! ) // inserts the third video to composition
+                try audioTrack?.insertTimeRange(video3Range, of: video3AudioTrack, at: CMTime(seconds: video1Asset.duration.seconds +                                  video2Asset.duration.seconds, preferredTimescale: 1000)) //
+            case 3:
+                
+                try videoTrack?.insertTimeRange(video1Range, of: video1VideoTrack, at: CMTime.zero) //inserts the first video to the composition
+                try audioTrack?.insertTimeRange(video1Range, of: video1AudioTrack, at: CMTime.zero) // inserts the first video audio
+                
+                try videoTrack?.insertTimeRange(video2Range, of: video2VideoTrack, at:(videoTrack?.asset?.duration)! ) //   inserts the second video to the composition
+                try audioTrack?.insertTimeRange(video2Range, of: video2AudioTrack, at: CMTime(seconds: video1Asset.duration.seconds, preferredTimescale: 1000))
+                
+                try videoTrack?.insertTimeRange(video3Range, of: video3VideoTrack, at:(videoTrack?.asset?.duration)! ) //  inserts the third video to composition
+                try audioTrack?.insertTimeRange(video3Range, of: video3AudioTrack, at: CMTime(seconds: video1Asset.duration.seconds +                                  video2Asset.duration.seconds, preferredTimescale: 1000)) //
+                
+            default:
+                print("out of bounds")
+            }
             
-            
-            try videoTrack?.insertTimeRange(video2Range, of: video2VideoTrack, at: CMTime.zero ) // (videoTrack?.asset?.duration)!  inserts the second video to the composition
-            try audioTrack?.insertTimeRange(video2Range, of: video2AudioTrack, at: CMTime.zero)
-            
-            
-            try videoTrack?.insertTimeRange(video3Range, of: video3VideoTrack, at:CMTime.zero ) //(videoTrack?.asset?.duration)!  inserts the third video to composition
-            try audioTrack?.insertTimeRange(video3Range, of: video3AudioTrack, at: CMTime.zero) //CMTime(seconds: video1Asset.duration.seconds +                                  video2Asset.duration.seconds, preferredTimescale: 1000)
         } catch {
             print(LocalizedError.self)
         }
