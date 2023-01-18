@@ -184,7 +184,6 @@ class VideoMainViewController: UIViewController {
         default:
             print("tes")
         }
-        
     }
 }
 
@@ -248,6 +247,7 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
     //Tap action on video player
     @objc func tapOnVideoLayer(tap: UITapGestureRecognizer)
     {
+        isPlaying = !isPlaying
         if isPlaying
         {
             player.play()
@@ -256,7 +256,7 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
         {
             player.pause()
         }
-        isPlaying = !isPlaying
+        
     }
     
     
@@ -283,7 +283,6 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
         //loop for 6 number of frames
         for _ in 0...5
         {
-            
             let imageButton = UIButton()
             let xPositionForEach = CGFloat(imageFrameView.frame.width)/6
             imageButton.frame = CGRect(x: CGFloat(startXPosition), y: CGFloat(0), width: xPositionForEach, height: CGFloat(imageFrameView.frame.height))
@@ -304,7 +303,6 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
             imageButton.isUserInteractionEnabled = false
             imageFrameView.addSubview(imageButton)
         }
-        
     }
     
     //Create range slider
@@ -324,6 +322,7 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
         
         //Range slider action
         rangeSlider.addTarget(self, action: #selector(VideoMainViewController.rangeSliderValueChanged(_:)), for: .valueChanged)
+        rangeSlider.addTarget(self, action: #selector(VideoMainViewController.rangeSliderDragFinished(_:)), for: .touchUpInside)
         
         let time = DispatchTime.now() + Double(Int64(NSEC_PER_SEC)) / Double(NSEC_PER_SEC)
         DispatchQueue.main.asyncAfter(deadline: time) {
@@ -336,7 +335,7 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
     //MARK: rangeSlider Delegate
     @objc func rangeSliderValueChanged(_ rangeSlider: RangeSlider) {
         player.pause()
-        
+        isPlaying = false
         if(isSliderEnd == true)
         {
             rangeSlider.minimumValue = 0.0
@@ -359,6 +358,10 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
         {
             seekVideo(toPos: CGFloat(rangeSlider.upperValue))
         }
+    }
+    
+    @objc func rangeSliderDragFinished(_ rangeSlider: RangeSlider){
+        seekVideo(toPos: CGFloat(rangeSlider.lowerValue))
     }
     
     
