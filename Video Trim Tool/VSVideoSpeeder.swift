@@ -92,7 +92,7 @@ class VSVideoSpeeder: NSObject {
                     try FileManager.default.removeItem(at: url)
                 }
                 
-                try FileManager.default.replaceItemAt(url, withItemAt: url)
+//                try FileManager.default.replaceItemAt(url, withItemAt: url)
                 
             } catch {
                 print(error.localizedDescription)
@@ -114,6 +114,4 @@ class VSVideoSpeeder: NSObject {
             return
         }
     }
-    
-    
 }

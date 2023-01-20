@@ -29,12 +29,13 @@ class VideoMainViewController: UIViewController {
     var stopTime: CGFloat  = 0.0
     var thumbTime: CMTime!
     var thumbtimeSeconds: Int!
+    var audioIsPresent = true
     var caseOfExport: Int = 5 // varable deretmines how it exports videos
     //                           0 - exports full video with desired slowtime
     //                           1 - exports video trimmed from the left only
     //                           2 - exports video trimmed from the right only
     //                           3 - exports video trimmed from both sides
-                    
+    
     
     var videoPlaybackPosition: CGFloat = 0.0
     var cache:NSCache<AnyObject, AnyObject>!
@@ -131,14 +132,14 @@ class VideoMainViewController: UIViewController {
     @IBAction func cropVideo(_ sender: Any)
     {
         
-        player.pause()
+//        player.pause()
         let start = Float(startTimeText.text!)
         let end   = Float(endTimeText.text!)
         
         //2 is the index of the video that will be slowed down. 1 and 3 are just cropped and saved.
         
-        if (start == 0.0){
-            if end == Float(asset.duration.seconds).rounded() {
+        if (start == 0.0){//if the left thumb of the slider is at the end
+            if end == Float(asset.duration.seconds).rounded() { //if the right thumb of the slider is at the end
                 self.caseOfExport = 0
                 cropVideo(sourceURL1: url, startTime: start!, endTime: end!, indexOfVideo: 2)
             } else {
@@ -147,7 +148,7 @@ class VideoMainViewController: UIViewController {
                 cropVideo(sourceURL1: url, startTime: end!, endTime: Float(asset.duration.seconds), indexOfVideo: 3)
             }
         } else {
-            if end == Float(asset.duration.seconds).rounded() {
+            if end == Float(asset.duration.seconds).rounded() {//if the right thumb of the slider is at the end
                 self.caseOfExport = 1
                 cropVideo(sourceURL1: url, startTime: 0.0, endTime: start!, indexOfVideo: 1)
                 cropVideo(sourceURL1: url, startTime: start!, endTime: end!, indexOfVideo: 2)
@@ -457,7 +458,7 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
                 let video2URL = documentDirectory.appendingPathComponent("output").appendingPathComponent("2.mp4")
                 switch exportSession.status {
                 case .completed:
-                    print("export session successful")
+                    print("2nd video export session successful")
                     DispatchQueue.main.async {
                         switch self.slowDownSlider.value {
                         case -4:
@@ -498,7 +499,6 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
     
     //Save Video to Photos Library
     private func saveToCameraRoll(URL: NSURL!) {
-        
         PHPhotoLibrary.shared().performChanges({
             PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: URL as URL)
         }) { saved, error in
@@ -508,10 +508,12 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
                     let defaultAction = UIAlertAction(title: "OK", style: .default, handler: nil)
                     alertController.addAction(defaultAction)
                     self.present(alertController, animated: true, completion: nil)
+                    
+                    self.audioIsPresent = false
                 }
             }
             else {
-                print(error)
+                print(error!)
             }
             
         }}
@@ -525,7 +527,8 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
                     print(exporter.error?.localizedDescription ?? "Error in exporting..")
                 }
                 case .completed: do {
-                    print("Scaled video has been generated successfully!")
+                    print("Scaled and slowed video has been exported successfully!")
+                    //                    self.saveToCameraRoll(URL: VSVideoSpeeder.shared.urlToSave as NSURL?)
                     self.mergeVideosAndSave(video2URL: VSVideoSpeeder.shared.urlToSave as URL?, case: self.caseOfExport)
                 }
                 case .unknown: break
@@ -548,12 +551,11 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
                                                                    create: true) else {return}
         let fileDirectory = documentDirectory.appendingPathComponent("output")
         let video1URL = fileDirectory.appendingPathComponent("1.mp4")
-        
         let video3URL = fileDirectory.appendingPathComponent("3.mp4")
         
         let movie = AVMutableComposition()
         let videoTrack = movie.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)
-        let audioTrack = movie.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
+        var audioTrack = movie.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) //movie.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
         
         
         let video1Asset = AVAsset(url: video1URL) //1st video
@@ -561,19 +563,29 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
         let video3Asset = AVAsset(url: video3URL) //3rd video
         
         
-        //loads the 2nd video video video and audio tracks
-        let video2AudioTrack = video2Asset.tracks(withMediaType: .audio).first! //2
+        var video2AudioTrack = video2Asset.tracks(withMediaType: .audio).first
+        var video1AudioTrack = video2Asset.tracks(withMediaType: .audio).first
+        var video3AudioTrack = video2Asset.tracks(withMediaType: .audio).first
+        
+        if video2AudioTrack == nil {
+            print("audio is nil")
+            self.audioIsPresent = false
+        } else {
+            audioTrack = movie.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)!
+            video2AudioTrack = video2Asset.tracks(withMediaType: .audio).first!
+            video1AudioTrack = video2Asset.tracks(withMediaType: .audio).first!
+            video3AudioTrack = video2Asset.tracks(withMediaType: .audio).first! //2
+        }
+        
+        //loads the 2nd video video tracks
         let video2VideoTrack = video2Asset.tracks(withMediaType: .video).first!
         let video2Range = CMTimeRangeMake(start: CMTime.zero, duration: video2Asset.duration)
         
-        
-        //loads the first video video and audio tracks
-        var video1AudioTrack = video2Asset.tracks(withMediaType: .audio).first!
+        //loads the first video tracks
         var video1VideoTrack = video2Asset.tracks(withMediaType: .video).first!
         var video1Range = CMTimeRangeMake(start: CMTime.zero, duration: video2Asset.duration)
         
-        //        loads the 3rd video video video and audio tracks
-        var video3AudioTrack = video2Asset.tracks(withMediaType: .audio).first! //2
+        //loads the 3rd videotracks
         var video3VideoTrack = video2Asset.tracks(withMediaType: .video).first!
         var video3Range = CMTimeRangeMake(start: CMTime.zero, duration: video2Asset.duration)
         
@@ -581,20 +593,28 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
         case 0:
             print("nothing to do here")
         case 1:
-            video1AudioTrack = video1Asset.tracks(withMediaType: .audio).first!
+            
+            if self.audioIsPresent {
+                video1AudioTrack = video1Asset.tracks(withMediaType: .audio).first!
+            }
             video1VideoTrack = video1Asset.tracks(withMediaType: .video).first!
             video1Range = CMTimeRangeMake(start: CMTime.zero, duration: video1Asset.duration)
         case 2:
-            
-            video3AudioTrack = video3Asset.tracks(withMediaType: .audio).first! //2
+            if self.audioIsPresent {
+                video3AudioTrack = video3Asset.tracks(withMediaType: .audio).first! //2
+            }
             video3VideoTrack = video3Asset.tracks(withMediaType: .video).first!
             video3Range = CMTimeRangeMake(start: CMTime.zero, duration: video3Asset.duration)
+            
         case 3:
-            video1AudioTrack = video1Asset.tracks(withMediaType: .audio).first!
+            if self.audioIsPresent {
+                video1AudioTrack = video1Asset.tracks(withMediaType: .audio).first!
+                video3AudioTrack = video3Asset.tracks(withMediaType: .audio).first! //2
+            }
+            
             video1VideoTrack = video1Asset.tracks(withMediaType: .video).first!
             video1Range = CMTimeRangeMake(start: CMTime.zero, duration: video1Asset.duration)
             
-            video3AudioTrack = video3Asset.tracks(withMediaType: .audio).first! //2
             video3VideoTrack = video3Asset.tracks(withMediaType: .video).first!
             video3Range = CMTimeRangeMake(start: CMTime.zero, duration: video3Asset.duration)
         default:
@@ -604,33 +624,51 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
         do{
             switch caseOfExport {
             case 0:
-                
                 try videoTrack?.insertTimeRange(video2Range, of: video2VideoTrack, at:CMTime.zero ) //   inserts the second video to the composition
-                try audioTrack?.insertTimeRange(video2Range, of: video2AudioTrack, at: CMTime.zero)
+                if self.audioIsPresent {
+                    try audioTrack?.insertTimeRange(video2Range, of: video2AudioTrack!, at: CMTime.zero)
+                }
                 
             case 1:
                 try videoTrack?.insertTimeRange(video1Range, of: video1VideoTrack, at: CMTime.zero) //inserts the first video to the composition
-                try audioTrack?.insertTimeRange(video1Range, of: video1AudioTrack, at: CMTime.zero) // inserts the first video audio
+                //here was the audio track for video 1
                 
                 try videoTrack?.insertTimeRange(video2Range, of: video2VideoTrack, at:(videoTrack?.asset?.duration)! ) //   inserts the second video to the composition
-                try audioTrack?.insertTimeRange(video2Range, of: video2AudioTrack, at: CMTime(seconds: video1Asset.duration.seconds, preferredTimescale: 1000))
+                //here was the audio track for video 2
+                
+                if self.audioIsPresent {
+                    try audioTrack?.insertTimeRange(video1Range, of: video1AudioTrack!, at: CMTime.zero) // inserts the first video audio
+                    try audioTrack?.insertTimeRange(video2Range, of: video2AudioTrack!, at: CMTime(seconds: video1Asset.duration.seconds, preferredTimescale: 1000))
+                }
                 
             case 2:
-                try videoTrack?.insertTimeRange(video2Range, of: video2VideoTrack, at: CMTime.zero ) // (videoTrack?.asset?.duration)!  inserts the second video to the composition
-                try audioTrack?.insertTimeRange(video2Range, of: video2AudioTrack, at: CMTime.zero)
+                try videoTrack?.insertTimeRange(video2Range, of: video2VideoTrack, at: CMTime.zero ) //  inserts the second video to the composition
+                //here was the audio track for video 2
                 
                 try videoTrack?.insertTimeRange(video3Range, of: video3VideoTrack, at:(videoTrack?.asset?.duration)! ) // inserts the third video to composition
-                try audioTrack?.insertTimeRange(video3Range, of: video3AudioTrack, at: CMTime(seconds: video1Asset.duration.seconds +                                  video2Asset.duration.seconds, preferredTimescale: 1000)) //
+                //here was the audio track for video 3
+                
+                if self.audioIsPresent {
+                    try audioTrack?.insertTimeRange(video2Range, of: video2AudioTrack!, at: CMTime.zero)
+                    try audioTrack?.insertTimeRange(video3Range, of: video3AudioTrack!, at: CMTime(seconds: video1Asset.duration.seconds + video2Asset.duration.seconds, preferredTimescale: 1000)) //
+                }
+                
             case 3:
                 
                 try videoTrack?.insertTimeRange(video1Range, of: video1VideoTrack, at: CMTime.zero) //inserts the first video to the composition
-                try audioTrack?.insertTimeRange(video1Range, of: video1AudioTrack, at: CMTime.zero) // inserts the first video audio
+                //here was the first video audio track
                 
                 try videoTrack?.insertTimeRange(video2Range, of: video2VideoTrack, at:(videoTrack?.asset?.duration)! ) //   inserts the second video to the composition
-                try audioTrack?.insertTimeRange(video2Range, of: video2AudioTrack, at: CMTime(seconds: video1Asset.duration.seconds, preferredTimescale: 1000))
+                //here was the second video audio track
                 
                 try videoTrack?.insertTimeRange(video3Range, of: video3VideoTrack, at:(videoTrack?.asset?.duration)! ) //  inserts the third video to composition
-                try audioTrack?.insertTimeRange(video3Range, of: video3AudioTrack, at: CMTime(seconds: video1Asset.duration.seconds +                                  video2Asset.duration.seconds, preferredTimescale: 1000)) //
+                //there was the third video audio track
+                
+                if self.audioIsPresent {
+                    try audioTrack?.insertTimeRange(video1Range, of: video1AudioTrack!, at: CMTime.zero) // inserts the first video audio
+                    try audioTrack?.insertTimeRange(video2Range, of: video2AudioTrack!, at: CMTime(seconds: video1Asset.duration.seconds, preferredTimescale: 1000))
+                    try audioTrack?.insertTimeRange(video3Range, of: video3AudioTrack!, at: CMTime(seconds: video1Asset.duration.seconds + video2Asset.duration.seconds, preferredTimescale: 1000)) //
+                }
                 
             default:
                 print("out of bounds")
@@ -650,6 +688,7 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
             print(error.localizedDescription)
         }
         
+        print("preparing to export mix composition")
         let exporter = AVAssetExportSession(asset: movie,
                                             presetName: AVAssetExportPresetHighestQuality) //1
         //configure exporter
@@ -662,6 +701,7 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
                     print("failed \(error.localizedDescription)")
                 } else {
                     print("movie has been exported to \(outputMovieURL)")
+                    print(print("preparing to transfer to gallery"))
                     self.saveToCameraRoll(URL: outputMovieURL as NSURL)
                     do{
                         try FileManager.default.removeItem(at: video1URL)
@@ -674,28 +714,4 @@ extension VideoMainViewController:UIImagePickerControllerDelegate,UINavigationCo
             }
         })
     }
-    
-    private func ChangeVideoSpeed(fromURL: NSURL, by: Int64, withMode: SpeedoMode){
-        VSVideoSpeeder.shared.scaleAsset(fromURL: fromURL as URL, by: by, withMode: withMode) { (exporter) in
-            if let exporter = exporter {
-                switch exporter.status {
-                case .failed: do {
-                    print(exporter.error?.localizedDescription ?? "Error in exporting..")
-                }
-                case .completed: do {
-                    print("Scaled video has been generated successfully!")
-                }
-                case .unknown: break
-                case .waiting: break
-                case .exporting: break
-                case .cancelled: break
-                }
-            }
-            else {
-                /// Error
-                print("Exporter is not initialized.")
-            }
-        }
-    }
-    
 }
